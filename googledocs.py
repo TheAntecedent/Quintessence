@@ -226,9 +226,9 @@ def writeToWorksheetOverwriting(spreadsheet, worksheet_name, data):
   
   worksheet.update_cells(all_cells, 'USER_ENTERED')
 
-def formatWorksheet(spreadsheet, worksheet_name, data, num_core_stat_cols):
+def formatWorksheet(spreadsheet, worksheet_name, data, num_player_stat_cols, num_core_player_stat_cols):
   num_rows = len(data)
-  num_cols = max([len(row) for row in data])
+  num_cols = num_player_stat_cols
   worksheet = spreadsheet.worksheet(worksheet_name)
 
   # 1. freeze the header row & col
@@ -243,8 +243,8 @@ def formatWorksheet(spreadsheet, worksheet_name, data, num_core_stat_cols):
       'bold': True
     }
   })
-  resize_column_widths_p1 = createUpdateColumnSizeRequest(worksheet, 0, num_core_stat_cols, 120)
-  resize_column_widths_p2 = createUpdateColumnSizeRequest(worksheet, num_core_stat_cols, num_cols - num_core_stat_cols, 185)
+  resize_column_widths_p1 = createUpdateColumnSizeRequest(worksheet, 0, num_core_player_stat_cols, 120)
+  resize_column_widths_p2 = createUpdateColumnSizeRequest(worksheet, num_core_player_stat_cols, num_cols - num_core_player_stat_cols, 185)
 
   # 3. format all core stat text
   format_core_stat_text = createFormatCellsRequest(worksheet, 1, 1, num_rows - 1, num_cols - 1, {
@@ -252,7 +252,7 @@ def formatWorksheet(spreadsheet, worksheet_name, data, num_core_stat_cols):
   })
 
   # 4. add a separator between the core & auxiliary stats
-  core_aux_stat_border = createUpdateBorders(worksheet, 0, num_core_stat_cols - 1, num_rows, 1, [BorderTypes.Right], BorderStyle.SolidThick)
+  core_aux_stat_border = createUpdateBorders(worksheet, 0, num_core_player_stat_cols - 1, num_rows, 1, [BorderTypes.Right], BorderStyle.SolidThick)
 
   # 5. create conditional formatting rules
   # 5.a. conditional formatting rules for core stats
@@ -282,13 +282,13 @@ def formatWorksheet(spreadsheet, worksheet_name, data, num_core_stat_cols):
 
   # 5.b. conditional formatting rules for auxiliary stats
   aux_stat_dpm_formatting_unflattened = [
-    createAllConditionalFormattingRulesForColumn(worksheet, num_core_stat_cols + i, [
+    createAllConditionalFormattingRulesForColumn(worksheet, num_core_player_stat_cols + i, [
       RecolorBackgroundConditionalCriteria.max(BEST_COLOR),
       RecolorBackgroundConditionalCriteria.greaterThan(GOOD_COLOR, 300),
       RecolorBackgroundConditionalCriteria.between(AVERAGE_COLOR, 200, 300),
       RecolorBackgroundConditionalCriteria.lessThan(SUBPAR_COLOR, 200),
     ])
-    for i in range(num_cols - num_core_stat_cols)
+    for i in range(num_cols - num_core_player_stat_cols)
   ]
   aux_stat_dpm_formatting = [item for sublist in aux_stat_dpm_formatting_unflattened for item in sublist]
 
