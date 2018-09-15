@@ -1,0 +1,8 @@
+# ignore the caches & IDE metadata
+/__pycache__/
+/.logs/
+/.vscode/
+
+# don't upload/download credentials
+google_docs_credentials.json
+google_docs_token.json
