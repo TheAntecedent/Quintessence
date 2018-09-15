@@ -7,13 +7,19 @@ import logstf
 import tf2stats
 from consts import GameResult, Team, ClassType, SIXES_COMBAT_CLASSES
 
-def createAliasLookup(spreadsheet, worksheet_name):
+def createAliasLookup(spreadsheet, worksheet_name, logs_client):
   aliases = googledocs.readAllCells(spreadsheet, worksheet_name)
   
   assert len(aliases) > 0
 
   aliases = aliases[1:] # skip the header row
   return { id_and_name[1]: id_and_name[0] for id_and_name in aliases }
+
+def fetchConfiguration(spreadsheet, worksheet_name):
+  config_def = googledocs.readAllCells(spreadsheet, worksheet_name)
+  
+  config_def = config_def[1:] # skip the header row
+  return { row[0]: row[1] for row in config_def } # the first column is the config key and the second is the value
 
 def formatNoneNumber(num):
   return str(round(num,  2)) if num != None else ''
@@ -90,7 +96,7 @@ def updateSpreadsheet(spreadsheet, worksheet_name, alias_lookup, stats_summary):
   googledocs.writeToWorksheetOverwriting(spreadsheet, worksheet_name, data)
   googledocs.formatWorksheet(spreadsheet, worksheet_name, data, num_player_stat_cols, NUM_CORE_PLAYER_STAT_COLS)
 
-def updateStatsForTimebound(logs_client, log_metadata, ignored_log_ids, spreadsheet, alias_lookup, worksheet_name, timebound):
+def updateStatsForTimebound(logs_client, log_metadata, ignored_team_member_ids, ignored_log_ids, spreadsheet, alias_lookup, worksheet_name, timebound):
   print("Processing stats for " + worksheet_name)
 
   filtered_log_metadata = [log for log in log_metadata[u'logs'] if log[u'id'] not in ignored_log_ids]
@@ -100,7 +106,7 @@ def updateStatsForTimebound(logs_client, log_metadata, ignored_log_ids, spreadsh
   print("\tDone fetching logs")
 
   all_game_stats = [tf2stats.SingleGameStats(id, log) for id, log in logs.items()]
-  non_scrim_stats = [game_stats for game_stats in all_game_stats if not game_stats.isScrim(YAMBO_TEAM_IDS, 4)]
+  non_scrim_stats = [game_stats for game_stats in all_game_stats if not game_stats.isScrim(ignored_team_member_ids, 4)]
   stats_summary = tf2stats.AggregatedStats(non_scrim_stats, alias_lookup.keys())
 
   print("\tDone calculating aggregated stats")
@@ -109,20 +115,31 @@ def updateStatsForTimebound(logs_client, log_metadata, ignored_log_ids, spreadsh
 
   print("\tDone updating spreadsheet")
 
+def splitAndCleanCSV(stringData):
+  return [s.strip() for s in stringData.split(',')]
+
 TOKEN_FILEPATH = './google_docs_token.json'
 CREDENTIALS_FILEPATH = './google_docs_credentials.json'
 SCOPES = 'https://www.googleapis.com/auth/spreadsheets'
 SPREADSHEET_ID = '13lTISEHbpGld1-wtu9dTYd3KCAoKkOegzIiRA4KhYeU'
-YAMBO_TEAM_IDS = ["[U:1:106802962]", "[U:1:58527614]", "[U:1:95235270]", "[U:1:95386122]", "[U:1:87473885]", "[U:1:34750935]"]
-QUINDALI_UPLOADER_ID = "76561198032283738"
 LOGS_CACHE_DIR = '.logs'
-IGNORED_LOG_IDS = [2057832, 2063040, 2058579, 2063040]
+
+CONFIG_KEY_UPLOADER_ID = 'uploaderId'
+CONFIG_KEY_IGNORED_TEAM_IDS = 'ignoredTeamSteamIds'
+CONFIG_KEY_IGNORED_LOG_IDS = 'ignoredLogIds'
 
 if __name__ == '__main__':
   spreadsheet = googledocs.openSpreadsheet(TOKEN_FILEPATH, CREDENTIALS_FILEPATH, SCOPES, SPREADSHEET_ID)
   logs_client = logstf.LogsClient(LOGS_CACHE_DIR)
-  log_metadata = logs_client.getUploaderLogMetadata(QUINDALI_UPLOADER_ID)
-  alias_lookup = createAliasLookup(spreadsheet, 'Key')
+  alias_lookup = createAliasLookup(spreadsheet, 'Key', logs_client)
+  config = fetchConfiguration(spreadsheet, 'Configuration')
+  
+  # extract config values
+  uploader_id = config[CONFIG_KEY_UPLOADER_ID]
+  ignored_team_member_ids = splitAndCleanCSV(config[CONFIG_KEY_IGNORED_TEAM_IDS])
+  ignored_log_ids = [int(log_id) for log_id in splitAndCleanCSV(config[CONFIG_KEY_IGNORED_LOG_IDS])]
+
+  log_metadata = logs_client.getUploaderLogMetadata(config[CONFIG_KEY_UPLOADER_ID])
 
   PUG_START_YEAR = 2018
   PUG_START_MONTH = 6
@@ -133,7 +150,7 @@ if __name__ == '__main__':
   # update all-time stats
   all_time_start_time = logstf.TimeBounds.forMonth(PUG_START_YEAR, PUG_START_MONTH).start
   all_time_end_time = logstf.TimeBounds.forMonth(current_year, current_month).end
-  updateStatsForTimebound(logs_client, log_metadata, IGNORED_LOG_IDS, spreadsheet, alias_lookup, 'All-Time', logstf.TimeBounds(all_time_start_time, all_time_end_time))
+  updateStatsForTimebound(logs_client, log_metadata, ignored_team_member_ids, ignored_log_ids, spreadsheet, alias_lookup, 'All-Time', logstf.TimeBounds(all_time_start_time, all_time_end_time))
 
   # update per-month stats
   for year in range(PUG_START_YEAR, current_year + 1):
@@ -146,6 +163,6 @@ if __name__ == '__main__':
       # don't bother updating earlier months since their stats won't have changed
       if googledocs.worksheetExists(spreadsheet, worksheet_name) and (year != current_year or month != current_month):
         pass # continue
-      updateStatsForTimebound(logs_client, log_metadata, IGNORED_LOG_IDS, spreadsheet, alias_lookup, worksheet_name, logstf.TimeBounds.forMonth(year, month))
+      updateStatsForTimebound(logs_client, log_metadata, ignored_team_member_ids, ignored_log_ids, spreadsheet, alias_lookup, worksheet_name, logstf.TimeBounds.forMonth(year, month))
   
   logs_client.close()

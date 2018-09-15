@@ -1,8 +1,9 @@
 import datetime
 import json
+from math import floor
 import io
 import os
-from math import floor
+import urllib
 
 import requests
 from requests_throttler import BaseThrottler
@@ -17,6 +18,9 @@ def saveJson(filepath, jsonObject):
 
 def getLogIdFromUrl(url):
   return int(url[url.rindex('/') + 1:])
+
+def getPlayerNameFromUrl(url):
+  return urllib.parse.unquote(url[url.index('=') + 1:])
 
 def filterLogMetadataInTimeRange(logs, timerange):
   return [log for log in logs if log[u'players'] and log[u'players'] >= 12 and log[u'players'] < 18 and log[u'date'] >= timerange.start and log[u'date'] <= timerange.end] # only include 6v6 games (which might have had subs)
@@ -55,6 +59,16 @@ class LogsClient:
     
     # return merged cached & new results, preferring the new results if any conflicts
     return { **existing_logs, **fetched_logs }
+  
+  def getPossiblePlayerSteamIds(self, player_names):
+    if len(player_names) == 0:
+      return {}
+    
+    reqs = [requests.Request('GET', ' http://logs.tf/api/v1/player_search?name=' + name) for name in player_names]
+
+    throttled_requests = self.throttler.multi_submit(reqs)
+
+    return { getPlayerNameFromUrl(tr.request.url): tr.response.json() for tr in throttled_requests }
 
   def getUploaderLogMetadata(self, uploaderId):
     return self.throttler.submit(requests.Request('GET', 'http://logs.tf/api/v1/log?uploader=' + uploaderId + '&limit=10000')).response.json()
