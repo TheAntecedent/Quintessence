@@ -216,6 +216,7 @@ def writeToWorksheetOverwriting(spreadsheet, worksheet_name, data):
     spreadsheet.del_worksheet(worksheet)
   except:
     pass
+  
   worksheet = spreadsheet.add_worksheet(worksheet_name, num_rows, num_cols)
 
   all_cells = worksheet.range(1, 1, num_rows + 1, num_cols + 1)
@@ -243,8 +244,8 @@ def formatWorksheet(spreadsheet, worksheet_name, data, num_player_stat_cols, num
       'bold': True
     }
   })
-  resize_column_widths_p1 = createUpdateColumnSizeRequest(worksheet, 0, num_core_player_stat_cols, 120)
-  resize_column_widths_p2 = createUpdateColumnSizeRequest(worksheet, num_core_player_stat_cols, num_cols - num_core_player_stat_cols, 185)
+  resize_column_widths_p1 = createUpdateColumnSizeRequest(worksheet, 0, num_core_player_stat_cols, 200)
+  resize_column_widths_p2 = createUpdateColumnSizeRequest(worksheet, num_core_player_stat_cols, num_cols - num_core_player_stat_cols, 200)
 
   # 3. format all core stat text
   format_core_stat_text = createFormatCellsRequest(worksheet, 1, 1, num_rows - 1, num_cols - 1, {
@@ -267,13 +268,13 @@ def formatWorksheet(spreadsheet, worksheet_name, data, num_player_stat_cols, num
     RecolorBackgroundConditionalCriteria.between(AVERAGE_COLOR, 200, 300),
     RecolorBackgroundConditionalCriteria.lessThan(SUBPAR_COLOR, 200),
   ])
-  core_stat_hpm_formatting = createAllConditionalFormattingRulesForColumn(worksheet, 3, [
+  core_stat_hpm_formatting = createAllConditionalFormattingRulesForColumn(worksheet, 4, [
     RecolorBackgroundConditionalCriteria.max(BEST_COLOR),
     RecolorBackgroundConditionalCriteria.greaterThan(GOOD_COLOR, 950),
     RecolorBackgroundConditionalCriteria.between(AVERAGE_COLOR, 850, 950),
     RecolorBackgroundConditionalCriteria.lessThan(SUBPAR_COLOR, 850),
   ])
-  core_stat_win_rate_formatting = createAllConditionalFormattingRulesForColumn(worksheet, 4, [
+  core_stat_win_rate_formatting = createAllConditionalFormattingRulesForColumn(worksheet, 5, [
     RecolorBackgroundConditionalCriteria.max(BEST_COLOR),
     RecolorBackgroundConditionalCriteria.greaterThan(GOOD_COLOR, 0.6),
     RecolorBackgroundConditionalCriteria.between(AVERAGE_COLOR, 0.4, 0.6),

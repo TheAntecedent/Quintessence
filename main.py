@@ -68,6 +68,7 @@ def generateSpreadsheetRow(player_aggregated_stats):
   core_stats = [
       sum(player_aggregated_stats.game_result_counts.values()),
       formatNoneNumber(player_aggregated_stats.average_dpm),
+      formatNoneNumber(player_aggregated_stats.average_heals_received_per_minute),
       formatNoneNumber(player_aggregated_stats.average_hpm),
       str(round(player_aggregated_stats.win_rate * 100, 2)) + '%' if player_aggregated_stats.win_rate != None else ''
     ]
@@ -76,7 +77,7 @@ def generateSpreadsheetRow(player_aggregated_stats):
   return core_stats + per_class_dpm
 
 def updateSpreadsheet(spreadsheet, worksheet_name, alias_lookup, stats_summary):
-  spreadsheet_data_header = ["Player", "Games Played", "Average DPM", "Average HPM", "Win Rate"]
+  spreadsheet_data_header = ["Player", "Games Played", "Average DPM", "Average HRPM (combat)", "Average HPM", "Win Rate"]
   per_class_header = ['Average ' + class_type.value[0].upper() + class_type.value[1:] + ' DPM' for class_type in SIXES_COMBAT_CLASSES]
 
   spreadsheet_data = [
@@ -87,7 +88,7 @@ def updateSpreadsheet(spreadsheet, worksheet_name, alias_lookup, stats_summary):
   sorted_spreadsheet_data = sorted(spreadsheet_data, key=(lambda row: row[0].lower()))
 
   player_stat_data = [spreadsheet_data_header + per_class_header] + sorted_spreadsheet_data
-  NUM_CORE_PLAYER_STAT_COLS = 5
+  NUM_CORE_PLAYER_STAT_COLS = 6
   num_player_stat_cols = max([len(row) for row in player_stat_data])
 
   max_stat_data = [[]] + [[''] + row for row in generateSummaryData(alias_lookup, stats_summary)] # add 1 row & column of padding
@@ -111,8 +112,9 @@ def updateStatsForTimebound(logs_client, log_metadata, ignored_team_member_ids, 
 
   print("\tDone calculating aggregated stats")
   
-  updateSpreadsheet(spreadsheet, worksheet_name, alias_lookup, stats_summary)
-
+  if stats_summary.hasStats():
+    updateSpreadsheet(spreadsheet, worksheet_name, alias_lookup, stats_summary)
+  
   print("\tDone updating spreadsheet")
 
 def splitAndCleanCSV(stringData):

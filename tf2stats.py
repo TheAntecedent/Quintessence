@@ -3,10 +3,32 @@ import operator
 
 from consts import GameResult, Team, ClassType, SIXES_COMBAT_CLASSES
 
+class RawPlayerStats:
+  def __init__(self, game_stats, raw_player_log):
+    self.game_stats = game_stats
+    self.raw_player_log = raw_player_log
+
+class PlayerStatDefinition:
+  def __init__(self, name, extractor_func):
+    self.name = name
+    self.extractor_func = extractor_func
+  
+  def createStats(self, raw_player_stats):
+    return PlayerStat(self.name, self.extractor_func(raw_player_stats))
+  
+  @staticmethod
+  def createSimpleStatDefinition(name, raw_player_log_field):
+    return PlayerStatDefinition(name, lambda raw_player_stats: raw_player_stats.raw_player_log[raw_player_log_field])
+
 class PlayerStat:
-  def __init__(self, player_id, data, log_id):
-    self.player_id = player_id
+  def __init__(self, name, data):
+    self.name = name
     self.data = data
+
+class DetailedPlayerStat(PlayerStat):
+  def __init__(self, name, data, player_id, log_id):
+    super().__init__(name, data)
+    self.player_id = player_id
     self.log_id = log_id
 
 class MaxStat:
@@ -19,9 +41,9 @@ class MaxStat:
       stat = stat_getter(stats_in_single_log)
       if stat > max_scoring_stat:
         max_scoring_stat = stat
-        winners = [PlayerStat(stats_in_single_log.steam_id, stat, stats_in_single_log.log_id)]
+        winners = [DetailedPlayerStat(name, stat, stats_in_single_log.steam_id, stats_in_single_log.log_id)]
       elif stat == max_scoring_stat:
-        winners.append(PlayerStat(stats_in_single_log.steam_id, stat, stats_in_single_log.log_id))
+        winners.append(DetailedPlayerStat(name, stat, stats_in_single_log.steam_id, stats_in_single_log.log_id))
     
     self.winners = winners
 
@@ -40,14 +62,18 @@ class AggregatedStats:
     
     grouped_stats_per_player = itertools.groupby(all_individual_stats, key=PlayerSingleGameStats.STEAM_ID_GETTER)
     self.player_stats = { steam_id: PlayerAggregatedStats.createPlayerAggregatedStats(list(stats)) for steam_id, stats in grouped_stats_per_player }
+  
+  def hasStats(self):
+    return len(self.player_stats) > 0
 
 class PlayerAggregatedStats:
-  def __init__(self, steam_id, average_dpm, average_hpm, game_result_counts, per_class_dpm):
+  def __init__(self, steam_id, average_dpm, average_heals_received_per_minute, average_hpm, game_result_counts, per_class_dpm):
     self.steam_id = steam_id
     self.average_dpm = average_dpm
     self.average_hpm = average_hpm
     self.game_result_counts = game_result_counts
     self.per_class_dpm = per_class_dpm
+    self.average_heals_received_per_minute = average_heals_received_per_minute
 
     total_decided_games = game_result_counts[GameResult.WIN] + game_result_counts[GameResult.LOSS]
     self.win_rate = game_result_counts[GameResult.WIN] / total_decided_games if total_decided_games > 0 else None
@@ -64,10 +90,10 @@ class PlayerAggregatedStats:
     assert all([stats.steam_id == player_stats[0].steam_id for stats in player_stats])
 
     steam_id = player_stats[0].steam_id
-    total_dpm, total_hpm = 0, 0
+    total_dpm, total_hpm, total_heals_received_per_minute = 0, 0, 0
     per_class_total_dpm = { class_type: 0 for class_type in SIXES_COMBAT_CLASSES }
     per_class_games = { class_type: 0 for class_type in SIXES_COMBAT_CLASSES }
-    num_damage_games, num_heal_games = 0, 0
+    num_combat_class_games, num_medic_games = 0, 0
     game_result_counts = { result: 0 for result in GameResult }
 
     for stats in player_stats:
@@ -82,17 +108,18 @@ class PlayerAggregatedStats:
       game_result_counts[stats.game_result] += 1
       if stats.class_type == ClassType.MEDIC:
         total_hpm += stats.average_hpm
-        num_heal_games += 1
+        num_medic_games += 1
       else:
         total_dpm += stats.average_dpm
-        num_damage_games += 1
+        total_heals_received_per_minute += stats.average_heals_received_per_minute
+        num_combat_class_games += 1
       
       if stats.class_type in SIXES_COMBAT_CLASSES:
         per_class_total_dpm[stats.class_type] += stats.average_dpm
         per_class_games[stats.class_type] += 1
 
     per_class_dpm = { class_type: (per_class_total_dpm[class_type] / per_class_games[class_type] if per_class_games[class_type] > 0 else None) for class_type in SIXES_COMBAT_CLASSES }
-    return PlayerAggregatedStats(steam_id, total_dpm / num_damage_games if num_damage_games > 0 else None, total_hpm / num_heal_games if num_heal_games > 0 else None, game_result_counts, per_class_dpm)
+    return PlayerAggregatedStats(steam_id, total_dpm / num_combat_class_games if num_combat_class_games > 0 else None, total_heals_received_per_minute / num_combat_class_games if num_combat_class_games > 0 else None, total_hpm / num_medic_games if num_medic_games > 0 else None, game_result_counts, per_class_dpm)
 
 class SingleGameStats:
   def __init__(self, log_id, log):
@@ -137,8 +164,10 @@ class PlayerSingleGameStats:
     self.deaths = player_log[u'deaths']
     self.airshots = player_log[u'as']
     self.captures = player_log[u'cpc']
+    self.heals_received = player_log[u'hr']
     self.game_result = GameResult.TIE if game_stats.winning_team == None else (GameResult.WIN if game_stats.winning_team == self.team else GameResult.LOSS)
     
     duration_in_minutes = game_stats.duration_in_seconds / 60
     self.average_dpm = self.damage / duration_in_minutes
     self.average_hpm = self.heals / duration_in_minutes
+    self.average_heals_received_per_minute = self.heals_received / duration_in_minutes
