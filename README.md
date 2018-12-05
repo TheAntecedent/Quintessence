@@ -1,3 +1,7 @@
+The goal of Quintessence to is aggregate logs for all members in a pug group, providing a set of per-player stats and monthly/all-time bests (for DPM, heals, airshots, etc).
+
+For an example, see the [stats for Quindali Pugs](https://docs.google.com/spreadsheets/d/13lTISEHbpGld1-wtu9dTYd3KCAoKkOegzIiRA4KhYeU/)
+
 # Setup
 1. Install all dependencies with `pipenv install`
 2. Set up your google docs API credentials by following the steps on the [Google Sheets API guide](https://developers.google.com/sheets/api/quickstart/python)
