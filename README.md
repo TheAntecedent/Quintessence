@@ -5,10 +5,10 @@ For an example, see the [stats for Quindali Pugs](https://docs.google.com/spread
 # Setup
 1. Install all dependencies
 ```
-pipenv install requeststhrottler
 pipenv install google-api-python-client
 pipenv install oauth2client
 pipenv install gspread
+pipenv install requeststhrottler
 pipenv install --skip-lock requests
 ```
 > This is a stopgap until I fix the Pipfile dependency requirement violation caused by the old version of **requeststhrottler** incorrectly pinning the required version of **requests** instead of requiring a min version
