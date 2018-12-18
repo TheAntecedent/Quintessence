@@ -8,6 +8,7 @@ requeststhrottler = "*"
 google-api-python-client = "*"
 "oauth2client" = "*"
 gspread = "*"
+requests = "*"
 
 [dev-packages]
 pylint = "*"
