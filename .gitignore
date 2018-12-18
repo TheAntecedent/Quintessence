@@ -2,7 +2,6 @@
 /__pycache__/
 /.logs/
 /.vscode/
-Pipfile.lock
 
 # don't upload/download credentials
 google_docs_credentials.json

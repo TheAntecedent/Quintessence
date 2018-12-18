@@ -40,7 +40,7 @@ class RecolorBackgroundConditionalCriteria:
   
   @staticmethod
   def lessThan(hexcode, max_threshold):
-    return RecolorBackgroundConditionalCriteria(hexcode, '=AND($COL > 0, $COL < ' + str(max_threshold) + ')')
+    return RecolorBackgroundConditionalCriteria(hexcode, '=AND(NOT(ISBLANK($COL)), $COL < ' + str(max_threshold) + ')')
 
   @staticmethod
   def between(hexcode, min_threshold, max_threshold):
@@ -214,8 +214,8 @@ def writeToWorksheetOverwriting(spreadsheet, worksheet_name, data):
   try:
     worksheet = spreadsheet.worksheet(worksheet_name)
     spreadsheet.del_worksheet(worksheet)
-  except:
-    pass
+  except Exception as e:
+    print(f"Failed to delete worksheet '{worksheet_name}': {e}")
   
   worksheet = spreadsheet.add_worksheet(worksheet_name, num_rows, num_cols)
 

@@ -101,7 +101,7 @@ class PlayerAggregatedStats:
       if stats.total_playtime_in_seconds < 0.5 * stats.game_duration_in_seconds:
         continue
 
-      # other heuristics are low dpm and hpm from leaving the game, but the logs mistakenly tracking the remaining duration
+      # other heuristics are low dpm and hpm from leaving the game, but the logs mistakenly tracked the remaining duration
       if stats.average_dpm <= LOW_DPM and stats.average_hpm <= LOW_HPM:
         continue
 
@@ -134,7 +134,7 @@ class SingleGameStats:
 
   def isScrim(self, team_member_ids, min_num_team_members):
     """
-    A game with at least {scrim_threshold} players from {team_member_ids} on the same team is a scrim
+    A game with at least {min_num_team_members} players from {team_member_ids} on the same team is a scrim
     """
     counts = { team: 0 for team in Team }
     for player in self.player_stats:
