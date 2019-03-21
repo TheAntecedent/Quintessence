@@ -59,16 +59,6 @@ class LogsClient:
     
     # return merged cached & new results, preferring the new results if any conflicts
     return { **existing_logs, **fetched_logs }
-  
-  def getPossiblePlayerSteamIds(self, player_names):
-    if len(player_names) == 0:
-      return {}
-    
-    reqs = [requests.Request('GET', ' http://logs.tf/api/v1/player_search?name=' + name) for name in player_names]
-
-    throttled_requests = self.throttler.multi_submit(reqs)
-
-    return { getPlayerNameFromUrl(tr.request.url): tr.response.json() for tr in throttled_requests }
 
   def getUploaderLogMetadata(self, uploaderId):
     return self.throttler.submit(requests.Request('GET', 'http://logs.tf/api/v1/log?uploader=' + uploaderId + '&limit=10000')).response.json()

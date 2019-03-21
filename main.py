@@ -28,7 +28,7 @@ def formatIndividualPlayerStat(alias, log_id, data):
   return ('=HYPERLINK("https://logs.tf/%s", "%s, %s")') % (str(log_id), alias, formatNoneNumber(data))
 
 def generateSummaryData(alias_lookup, stats_summary):
-  return [[stat.name + ':'] + [formatIndividualPlayerStat(alias_lookup[winner.player_id], winner.log_id, winner.data) for winner in stat.winners] for stat in stats_summary.stats]
+  return [[stat.name + ':'] + [formatIndividualPlayerStat(alias_lookup.get(winner_steam_id, winner_steam_id), winner.log_id, winner.value) for winner_steam_id, winner in stat.winners] for stat in stats_summary.stats]
 
 def concatDataHorizontally(data1, data2):
   """
@@ -81,7 +81,7 @@ def updateSpreadsheet(spreadsheet, worksheet_name, alias_lookup, stats_summary):
   per_class_header = ['Average ' + class_type.value[0].upper() + class_type.value[1:] + ' DPM' for class_type in SIXES_COMBAT_CLASSES]
 
   spreadsheet_data = [
-    [alias_lookup[steam_id]] + generateSpreadsheetRow(stats)
+    [alias_lookup.get(steam_id, steam_id)] + generateSpreadsheetRow(stats)
     for steam_id, stats in stats_summary.player_stats.items()
     if steam_id in alias_lookup
   ]
@@ -107,7 +107,7 @@ def updateStatsForTimebound(logs_client, log_metadata, ignored_team_member_ids, 
   print("\tDone fetching logs")
 
   all_game_stats = [tf2stats.SingleGameStats(id, log) for id, log in logs.items()]
-  non_scrim_stats = [game_stats for game_stats in all_game_stats if not game_stats.isScrim(ignored_team_member_ids, 4)]
+  non_scrim_stats = [game_stats for game_stats in all_game_stats if not game_stats.is_scrim(ignored_team_member_ids, 4)]
   stats_summary = tf2stats.AggregatedStats(non_scrim_stats, alias_lookup.keys())
 
   print("\tDone calculating aggregated stats")
@@ -123,12 +123,15 @@ def splitAndCleanCSV(stringData):
 TOKEN_FILEPATH = './google_docs_token.json'
 CREDENTIALS_FILEPATH = './google_docs_credentials.json'
 SCOPES = 'https://www.googleapis.com/auth/spreadsheets'
-SPREADSHEET_ID = '13lTISEHbpGld1-wtu9dTYd3KCAoKkOegzIiRA4KhYeU'
 LOGS_CACHE_DIR = '.logs'
 
 CONFIG_KEY_UPLOADER_ID = 'uploaderId'
 CONFIG_KEY_IGNORED_TEAM_IDS = 'ignoredTeamSteamIds'
 CONFIG_KEY_IGNORED_LOG_IDS = 'ignoredLogIds'
+CONFIG_KEY_START_MONTH = 'startMonth'
+CONFIG_KEY_START_YEAR = 'startYear'
+
+SPREADSHEET_ID = '1dcWoKRfR6-Y5uPgL3p7387p8uqnObgyTNVYlYdqz8xM'
 
 if __name__ == '__main__':
   spreadsheet = googledocs.openSpreadsheet(TOKEN_FILEPATH, CREDENTIALS_FILEPATH, SCOPES, SPREADSHEET_ID)
@@ -140,24 +143,24 @@ if __name__ == '__main__':
   uploader_id = config[CONFIG_KEY_UPLOADER_ID]
   ignored_team_member_ids = splitAndCleanCSV(config[CONFIG_KEY_IGNORED_TEAM_IDS])
   ignored_log_ids = [int(log_id) for log_id in splitAndCleanCSV(config[CONFIG_KEY_IGNORED_LOG_IDS])]
+  pug_start_month = int(config[CONFIG_KEY_START_MONTH])
+  pug_start_year = int(config[CONFIG_KEY_START_YEAR])
 
   log_metadata = logs_client.getUploaderLogMetadata(config[CONFIG_KEY_UPLOADER_ID])
 
-  PUG_START_YEAR = 2018
-  PUG_START_MONTH = 6
   today = datetime.datetime.today()
   current_year = today.year
   current_month = today.month
 
   # update all-time stats
-  all_time_start_time = logstf.TimeBounds.forMonth(PUG_START_YEAR, PUG_START_MONTH).start
+  all_time_start_time = logstf.TimeBounds.forMonth(pug_start_year, pug_start_month).start
   all_time_end_time = logstf.TimeBounds.forMonth(current_year, current_month).end
   updateStatsForTimebound(logs_client, log_metadata, ignored_team_member_ids, ignored_log_ids, spreadsheet, alias_lookup, 'All-Time', logstf.TimeBounds(all_time_start_time, all_time_end_time))
 
   # update per-month stats
-  for year in range(PUG_START_YEAR, current_year + 1):
+  for year in range(pug_start_year, current_year + 1):
     for month in range(1, 13):
-      if year == PUG_START_YEAR and month < PUG_START_MONTH: # skip the months in the first year when there were no pugs
+      if year == pug_start_year and month < pug_start_month: # skip the months in the first year when there were no pugs
         continue
       if year == current_year and month > current_month:
         break
